@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git:*)",
+      "WebSearch",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(gh auth:*)",
+      "Read(//Users/frank/frank_project/**)",
+      "Bash(mv tg-claude-bridge:*)"
+    ]
+  }
+}

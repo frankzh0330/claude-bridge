@@ -1,0 +1,41 @@
+{
+  pane split_direction="vertical" {
+  pane split_direction="horizontal" {
+  pane split_direction="horizontal" {
+  pane {
+  command "zsh"
+}
+pane {
+  command "zsh"
+}
+}
+pane split_direction="horizontal" {
+pane {
+command "zsh"
+}
+pane {
+command "zsh"
+}
+}
+}
+
+pane split_direction="horizontal" {
+pane split_direction="horizontal" {
+pane {
+command "zsh"
+}
+pane {
+command "zsh"
+}
+}
+pane split_direction="horizontal" {
+pane {
+command "zsh"
+}
+pane {
+command "zsh"
+}
+}
+}
+}
+}
