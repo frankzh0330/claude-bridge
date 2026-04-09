@@ -1,27 +1,28 @@
-const TELEGRAM_MAX_LENGTH = 4096;
-const CHUNK_TARGET = 3800;
+/**
+ * Split text into chunks respecting channel max length.
+ */
+export function chunkMessage(text: string, maxLength: number): string[] {
+  if (text.length <= maxLength) return [text];
 
-export function chunkMessage(text: string): string[] {
-  if (text.length <= TELEGRAM_MAX_LENGTH) return [text];
-
+  const target = maxLength - 200;
   const chunks: string[] = [];
   let remaining = text;
 
   while (remaining.length > 0) {
-    if (remaining.length <= TELEGRAM_MAX_LENGTH) {
+    if (remaining.length <= maxLength) {
       chunks.push(remaining);
       break;
     }
 
     let splitAt = -1;
-    for (const pos of findSplitCandidates(remaining, CHUNK_TARGET)) {
+    for (const pos of findSplitCandidates(remaining, target)) {
       if (pos > 0) {
         splitAt = pos;
         break;
       }
     }
 
-    if (splitAt <= 0) splitAt = CHUNK_TARGET;
+    if (splitAt <= 0) splitAt = target;
     chunks.push(remaining.slice(0, splitAt));
     remaining = remaining.slice(splitAt);
   }
@@ -34,7 +35,7 @@ export function chunkMessage(text: string): string[] {
 
 function* findSplitCandidates(
   text: string,
-  target: number
+  target: number,
 ): Generator<number> {
   const searchEnd = Math.min(target, text.length - 1);
 

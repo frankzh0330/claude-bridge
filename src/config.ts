@@ -1,58 +1,95 @@
 import "dotenv/config";
 
-export interface BotConfig {
-  token: string;
+export interface ChannelInstanceConfig {
+  /** Adapter type: telegram, slack, discord */
+  type: string;
+  /** Working directory for Claude Code */
   cwd: string;
   maxTurns: number;
   maxBudgetUsd: number;
+  /** Max message length for this channel */
+  maxLength: number;
+  /** Adapter-specific options */
+  options: Record<string, unknown>;
 }
 
 export interface AppConfig {
-  bots: BotConfig[];
-  allowedUserId: number;
-  messageExpiryMinutes: number;
+  channels: ChannelInstanceConfig[];
 }
 
 export function loadConfig(): AppConfig {
-  const allowedUserId = process.env.ALLOWED_USER_ID;
-  if (!allowedUserId) throw new Error("ALLOWED_USER_ID is required");
-
-  const bots = loadBotConfigs();
-  if (bots.length === 0) throw new Error("No bot configured. Set BOT_TOKEN/BOT_CWD or BOT_<N>_TOKEN/BOT_<N>_CWD");
-
-  return {
-    bots,
-    allowedUserId: parseInt(allowedUserId, 10),
-    messageExpiryMinutes: parseInt(process.env.MESSAGE_EXPIRY_MINUTES || "20", 10),
-  };
+  const channels = loadChannels();
+  if (channels.length === 0) {
+    throw new Error("No channel configured");
+  }
+  return { channels };
 }
 
-function loadBotConfigs(): BotConfig[] {
-  const defaultMaxTurns = parseInt(process.env.BOT_MAX_TURNS || "30", 10);
-  const defaultMaxBudgetUsd = parseFloat(process.env.BOT_MAX_BUDGET_USD || "1.0");
+function loadChannels(): ChannelInstanceConfig[] {
+  const defaults = {
+    maxTurns: parseInt(process.env.BOT_MAX_TURNS || "30", 10),
+    maxBudgetUsd: parseFloat(process.env.BOT_MAX_BUDGET_USD || "1.0"),
+  };
 
-  // Single bot: BOT_TOKEN + BOT_CWD
+  // Legacy single-bot format: BOT_TOKEN + BOT_CWD (assumes telegram)
   const singleToken = process.env.BOT_TOKEN;
   if (singleToken) {
     return [{
-      token: singleToken,
+      type: "telegram",
       cwd: process.env.BOT_CWD || process.cwd(),
-      maxTurns: defaultMaxTurns,
-      maxBudgetUsd: defaultMaxBudgetUsd,
+      maxTurns: defaults.maxTurns,
+      maxBudgetUsd: defaults.maxBudgetUsd,
+      maxLength: 4096,
+      options: {
+        token: singleToken,
+        allowedUserId: parseInt(process.env.ALLOWED_USER_ID || "0", 10),
+        messageExpiryMinutes: parseInt(process.env.MESSAGE_EXPIRY_MINUTES || "20", 10),
+      },
     }];
   }
 
-  // Multiple bots: BOT_1_TOKEN + BOT_1_CWD, BOT_2_TOKEN + BOT_2_CWD, ...
-  const bots: BotConfig[] = [];
+  // Multi-channel format: CHANNEL_1_TYPE, CHANNEL_1_TOKEN, CHANNEL_1_CWD, ...
+  const channels: ChannelInstanceConfig[] = [];
   for (let i = 1; i <= 20; i++) {
-    const token = process.env[`BOT_${i}_TOKEN`];
-    if (!token) break;
-    bots.push({
-      token,
-      cwd: process.env[`BOT_${i}_CWD`] || process.cwd(),
-      maxTurns: parseInt(process.env[`BOT_${i}_MAX_TURNS`] || String(defaultMaxTurns), 10),
-      maxBudgetUsd: parseFloat(process.env[`BOT_${i}_MAX_BUDGET_USD`] || String(defaultMaxBudgetUsd)),
+    const type = process.env[`CHANNEL_${i}_TYPE`];
+    if (!type) break;
+
+    const token = process.env[`CHANNEL_${i}_TOKEN`];
+    if (!token) throw new Error(`CHANNEL_${i}_TOKEN is required when CHANNEL_${i}_TYPE is set`);
+
+    const maxLenghts: Record<string, number> = {
+      telegram: 4096,
+      slack: 40000,
+      discord: 2000,
+    };
+
+    const options: Record<string, unknown> = { token };
+
+    // Telegram-specific
+    if (type === "telegram") {
+      options.allowedUserId = parseInt(
+        process.env[`CHANNEL_${i}_USER_ID`] || process.env.ALLOWED_USER_ID || "0",
+        10,
+      );
+      options.messageExpiryMinutes = parseInt(
+        process.env[`CHANNEL_${i}_EXPIRY`] || process.env.MESSAGE_EXPIRY_MINUTES || "20",
+        10,
+      );
+    }
+
+    channels.push({
+      type,
+      cwd: process.env[`CHANNEL_${i}_CWD`] || process.cwd(),
+      maxTurns: parseInt(
+        process.env[`CHANNEL_${i}_MAX_TURNS`] || String(defaults.maxTurns),
+        10,
+      ),
+      maxBudgetUsd: parseFloat(
+        process.env[`CHANNEL_${i}_MAX_BUDGET_USD`] || String(defaults.maxBudgetUsd),
+      ),
+      maxLength: maxLenghts[type] || 4096,
+      options,
     });
   }
-  return bots;
+  return channels;
 }

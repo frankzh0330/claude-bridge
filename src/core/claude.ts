@@ -33,12 +33,13 @@ export interface ClaudeQueryOptions {
   cwd: string;
   maxTurns: number;
   maxBudgetUsd: number;
+  permissionMode: "bypassPermissions" | "plan" | "default";
 }
 
 export async function* streamClaude(
-  options: ClaudeQueryOptions
+  options: ClaudeQueryOptions,
 ): AsyncGenerator<ClaudeEvent, void> {
-  const { prompt, sessionId, abortController, cwd, maxTurns, maxBudgetUsd } = options;
+  const { prompt, sessionId, abortController, cwd, maxTurns, maxBudgetUsd, permissionMode } = options;
   let capturedSessionId = "";
 
   try {
@@ -46,8 +47,8 @@ export async function* streamClaude(
       prompt,
       options: {
         cwd,
-        permissionMode: "bypassPermissions",
-        allowDangerouslySkipPermissions: true,
+        permissionMode,
+        allowDangerouslySkipPermissions: permissionMode === "bypassPermissions",
         maxTurns,
         maxBudgetUsd,
         abortController,
